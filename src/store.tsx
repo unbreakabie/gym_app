@@ -5,10 +5,10 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   AppState, Announcement, ClassSession, Client, Metric, Notification, PayMethod,
-  ensureSchedule, localIso, monthKey, monthLabel, paymentStatus, seed, uid,
+  addDays, ensureSchedule, localIso, monthKey, monthLabel, paymentStatus, seed, uid,
 } from './data';
 
-const KEY = 'pulse-app-state-v1';
+const KEY = 'pulse-app-state-v2';
 
 interface Store {
   s: AppState;
@@ -26,13 +26,16 @@ interface Store {
   remindAll: (month: string) => number;
   announce: (title: string, body: string, tag: string) => void;
   addClass: (c: Omit<ClassSession, 'id' | 'attendees' | 'waitlist'>) => void;
-  cancelClass: (id: string) => void;
+  cancelClass: (id: string, message?: string) => void;
   addClient: (c: Pick<Client, 'name' | 'phone' | 'email' | 'planId' | 'founder' | 'goal'>) => void;
   updateClient: (id: string, patch: Partial<Client>) => void;
   addMetric: (clientId: string, m: Metric) => void;
   checkIn: (clientId: string) => void;
   logWorkout: (clientId: string, day: string) => void;
   readNotifications: (clientId: string) => void;
+  setWeeklyGoal: (clientId: string, goal: number) => void;
+  snoozeRisk: (clientId: string, days?: number) => void;
+  markContacted: (clientId: string) => void;
 }
 
 const Ctx = createContext<Store | null>(null);
@@ -53,6 +56,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const raw = await AsyncStorage.getItem(KEY);
         if (raw) {
           const saved = JSON.parse(raw) as AppState;
+          saved.clients = saved.clients.map(c => ({ ...c, weeklyGoal: c.weeklyGoal ?? 3 }));
           saved.classes = ensureSchedule(saved.classes, saved.clients.map(c => c.id));
           setS(saved);
         }
@@ -144,13 +148,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setS(p => ({ ...p, classes: [...p.classes, { ...c, id: uid(), attendees: [], waitlist: [] }].sort((a, b) => a.start.localeCompare(b.start)) }));
       toast('Aula criada');
     },
-    cancelClass: (id) => {
+    cancelClass: (id, message) => {
       const cls = s.classes.find(c => c.id === id);
       setS(p => ({
         ...p,
         classes: p.classes.map(c => c.id === id ? { ...c, cancelled: true } : c),
         clients: p.clients.map(c => cls && cls.attendees.includes(c.id)
-          ? { ...c, notifications: [note('Aula cancelada', `${cls.title} de ${cls.start.slice(8, 10)}/${cls.start.slice(5, 7)} às ${cls.start.slice(11, 16)} foi cancelada.`, 'class'), ...c.notifications] }
+          ? { ...c, notifications: [note('Aula cancelada', `${cls.title} de ${cls.start.slice(8, 10)}/${cls.start.slice(5, 7)} às ${cls.start.slice(11, 16)} foi cancelada.${message ? ` ${message}` : ''}`, 'class'), ...c.notifications] }
           : c),
       }));
       toast('Aula cancelada — clientes notificados');
@@ -159,7 +163,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const today = new Date();
       const c: Client = {
         id: uid(), ...data, dueDay: Math.min(today.getDate(), 28), joined: localIso(today).slice(0, 10), notes: '',
-        workoutId: null, payments: [], metrics: [], prs: [], checkins: [], workoutLog: [],
+        workoutId: null, payments: [], metrics: [], prs: [], checkins: [], workoutLog: [], weeklyGoal: 3,
         notifications: [note('Bem-vindo ao Pulse', 'A tua conta está ativa. Reserva já a tua primeira aula.', 'news')],
       };
       setS(p => ({ ...p, clients: [c, ...p.clients] }));
@@ -179,6 +183,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       toast('Treino concluído');
     },
     readNotifications: (clientId) => mapClient(clientId, c => ({ ...c, notifications: c.notifications.map(n => ({ ...n, read: true })) })),
+    setWeeklyGoal: (clientId, goal) => { mapClient(clientId, c => ({ ...c, weeklyGoal: goal })); toast(`Objetivo: ${goal} treinos por semana`); },
+    snoozeRisk: (clientId, days = 7) => {
+      mapClient(clientId, c => ({ ...c, riskSnoozeUntil: localIso(addDays(new Date(), days)).slice(0, 10) }));
+      toast(`Alerta adiado ${days} dias`);
+    },
+    markContacted: (clientId) => {
+      mapClient(clientId, c => ({ ...c, contactedAt: localIso(new Date()), riskSnoozeUntil: localIso(addDays(new Date(), 7)).slice(0, 10) }));
+      toast('Registado. Voltamos a avisar se continuar sem treinar');
+    },
   }), [s, ready, toastMsg, toast]);
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;

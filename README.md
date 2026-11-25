@@ -3,21 +3,26 @@
 iOS + Android app (Expo / React Native) built in the visual identity of @pulsewclub (black + gold, *Excellence in Motion*). The whole UI is in European Portuguese.
 
 ## Two apps in one
-On the login screen you pick **Cliente** or **Personal Trainer**. Both share the same data, so anything the PT does (registering a payment, posting an announcement, cancelling a class) shows up straight away in the client app.
+On the sign-in screen you pick **Cliente** or **Personal Trainer** (demo; real accounts come with the backend). Both share the same data.
 
-### Client
-- **Início**: membership card (plan, Founding Member badge, payment status, *Pay now*), QR check-in, weekly goal, upcoming bookings, club news, notifications
-- **Aulas**: weekly timetable (Força, Reformer, Mobilidade), book or cancel, waitlist, request a PT session
-- **Treino**: training plan assigned by the PT, exercise checklist, history
-- **Progresso**: weight / body-fat chart, check-ins, personal records
-- **Perfil**: subscription, payment history, MB WAY / Multibanco / card payment (simulated), plan change, settings
+Visual style: **Giz** (light chalk background, black ink, gold accents). Navigation uses Expo Router; every screen lives in `src/app/`.
 
-### Personal Trainer
-- **Painel**: revenue for the month (received vs expected), paid / pending / overdue counts, overdue list, today's classes, clients at risk of dropping out (no training in 10+ days)
-- **Clientes**: search, filter by payment status, add a client, client record (call / WhatsApp, check-in, mark as paid, send a reminder, payment history, assign a training plan, body assessment, private notes)
-- **Pagamentos**: who paid and who didn't, month by month; reminders one at a time or to everyone overdue; share the report
-- **Aulas**: day-by-day timetable, occupancy, attendees and waitlist, create a class, cancel a class (attendees are notified)
-- **Avisos**: publish news / campaigns, which notifies every client
+### Cliente (`src/app/cliente/`)
+- **Hoje**: weekly goal ring and streak, next booked class with check-in, today's workout, the monthly fee only when it is due, latest club news
+- **Agenda**: my bookings and waitlist, day-by-day timetable with filters
+- **Eu**: member card, weekly goal (2 / 3 / 4), progress chart and records, payments, notification settings, privacy
+- Focused screens: `treino` (one exercise at a time, sets and rest timer), `pagar` (MB WAY / Multibanco, simulated), `checkin`, `aula/[id]`, `notificacoes`
+
+### Personal Trainer (`src/app/pt/`)
+- **Hoje**: month revenue, "Precisa de ti" (overdue fees, clients at risk with WhatsApp / Já falei / Adiar, full classes with waitlist), today's classes, + button (new client, class, announcement, payment)
+- **Clientes**: search and filters (em atraso, em risco, pendentes, pagos); client record in `ficha/[id]` (resumo, treino, avaliações, pagamentos, notas)
+- **Agenda**: classes by day, create and cancel (with a message to attendees)
+- **Caixa**: month by month, remind one or all overdue, register cash / transfer, share report
+
+### Code map
+- `src/data.ts`: data model, seed data and rules (fees, payment status, weekly goal and streak with one free pause a month, at-risk detection)
+- `src/store.tsx`: shared state and actions (AsyncStorage for now; Supabase in the next phase)
+- `src/theme.ts`, `src/ui.tsx`, `src/components.tsx`: Giz tokens and component set
 
 ## Run it
 ```powershell
