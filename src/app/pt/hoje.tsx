@@ -11,7 +11,7 @@ import { monthSummary, whatsappUrl } from '../../trainer';
 import { dayKey, euro, hhmm, riskOf } from '../../data';
 
 export default function PtHoje() {
-  const { s, remindAll, snoozeRisk, markContacted } = useStore();
+  const { s, remindAll, snoozeRisk, markContacted, logout, resetDemo } = useStore();
   const inset = useSafeAreaInsets();
   const [create, setCreate] = useState(false);
   const now = new Date();
@@ -91,6 +91,11 @@ export default function PtHoje() {
           {todays.length === 0 ? <Empty icon="calendar-clear-outline" text="Sem aulas hoje." />
             : todays.map((c, i) => <ClassRow key={c.id} c={c} first={i === 0} onPress={() => router.push(`/aula/${c.id}`)} />)}
         </Card>
+
+        <Row>
+          <Btn title="Terminar sessão" variant="outline" onPress={() => { logout(); router.replace('/entrar'); }} style={{ flex: 1 }} />
+          <Btn title="Repor demo" variant="ghost" onPress={resetDemo} />
+        </Row>
       </Screen>
 
       <Pressable accessibilityRole="button" accessibilityLabel="Criar" onPress={() => setCreate(true)}
