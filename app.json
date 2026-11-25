@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "Pulse Wellness Club",
+    "slug": "pulse-wellness-club",
+    "scheme": "pulse",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0B0B0C",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0B0B0C"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "pt.pulsewellnessclub.app"
+    },
+    "android": {
+      "package": "pt.pulsewellnessclub.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#C9A66B",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "name": "Pulse Wellness Club",
+      "themeColor": "#0B0B0C",
+      "backgroundColor": "#0B0B0C"
+    }
+  }
+}
