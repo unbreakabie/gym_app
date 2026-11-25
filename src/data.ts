@@ -17,6 +17,12 @@ export interface Client {
   payments: Payment[]; metrics: Metric[]; prs: PR[];
   checkins: string[]; workoutLog: { date: string; day: string }[];
   notifications: Notification[];
+  /** Sessions per week the client aims for (2–4). */
+  weeklyGoal: number;
+  /** PT snoozed the at-risk alert until this day (YYYY-MM-DD). */
+  riskSnoozeUntil?: string;
+  /** Last time the PT marked "Já falei" for an at-risk alert. */
+  contactedAt?: string;
 }
 
 export interface ClassSession {
@@ -81,6 +87,92 @@ export function unpaidMonths(c: Client, upTo: string, today = new Date()) {
   while (m <= upTo) { if (paymentStatus(c, m, today) !== 'paid') out.push(m); m = shiftMonth(m, 1); }
   return out;
 }
+
+/* ---------------- goals, streaks and risk ---------------- */
+/** Monday 00:00 of the week that contains `d`. */
+export function weekStart(d: Date) {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const wd = (x.getDay() + 6) % 7; // Monday = 0
+  return addDays(x, -wd);
+}
+
+/** Distinct training days (check-ins and logged workouts both count). */
+export function activityDays(c: Client): string[] {
+  const days = new Set<string>();
+  c.checkins.forEach(x => days.add(x.slice(0, 10)));
+  c.workoutLog.forEach(x => days.add(x.date.slice(0, 10)));
+  return [...days].sort();
+}
+
+export function sessionsInWeek(c: Client, start: Date) {
+  const a = dayKey(start), b = dayKey(addDays(start, 7));
+  return activityDays(c).filter(d => d >= a && d < b).length;
+}
+
+/**
+ * Weeks in a row that met the weekly goal. The current week counts once it is met.
+ * One missed week per calendar month is forgiven (a free pause) so holidays or illness
+ * don't wipe the streak.
+ */
+export function streakInfo(c: Client, today = new Date()) {
+  const goal = c.weeklyGoal || 3;
+  const thisWeek = weekStart(today);
+  const done = sessionsInWeek(c, thisWeek);
+  let streak = done >= goal ? 1 : 0;
+  const pausedMonths = new Set<string>();
+  let pauseUsedThisMonth = false;
+  const joined = c.joined.slice(0, 10);
+  for (let w = 1; w < 104; w++) {
+    const start = addDays(thisWeek, -7 * w);
+    if (dayKey(addDays(start, 7)) <= joined) break;
+    if (sessionsInWeek(c, start) >= goal) { streak++; continue; }
+    const m = monthKey(start);
+    if (!pausedMonths.has(m) && streak > 0) {
+      pausedMonths.add(m);
+      if (m === monthKey(today)) pauseUsedThisMonth = true;
+      continue;
+    }
+    break;
+  }
+  return { goal, done, left: Math.max(0, goal - done), streak, pauseUsedThisMonth };
+}
+
+export function daysSince(iso: string | undefined, today = new Date()) {
+  if (!iso) return Infinity;
+  const d = new Date(iso.slice(0, 10) + 'T00:00:00');
+  const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return Math.round((t.getTime() - d.getTime()) / 86400000);
+}
+
+export type RiskLevel = 'ok' | 'watch' | 'risk';
+/**
+ * "A observar" after 7 quiet days, "Em risco" after 10, but only for clients who usually
+ * train at least once a week (someone who comes every other week isn't flagged).
+ */
+export function riskOf(c: Client, today = new Date()): { level: RiskLevel; days: number } {
+  const days = activityDays(c);
+  const last = days[days.length - 1];
+  const since = daysSince(last, today);
+  const eightWeeksAgo = dayKey(addDays(today, -56));
+  const usual = days.filter(d => d >= eightWeeksAgo).length / 8;
+  const snoozed = c.riskSnoozeUntil && c.riskSnoozeUntil >= dayKey(today);
+  if (snoozed || usual < 1 && since < 14) return { level: 'ok', days: since };
+  if (since >= 10) return { level: 'risk', days: since };
+  if (since >= 7) return { level: 'watch', days: since };
+  return { level: 'ok', days: since };
+}
+
+/** Which day of the assigned plan comes next (rotates through the plan's days). */
+export function nextWorkoutDay(s: AppState, c: Client) {
+  const plan = s.workouts.find(w => w.id === c.workoutId);
+  if (!plan) return null;
+  const last = c.workoutLog[0]?.day;
+  const i = plan.days.findIndex(d => d.name === last);
+  const day = plan.days[(i + 1) % plan.days.length];
+  return { plan, day };
+}
+
+export const RISK_LABEL: Record<RiskLevel, string> = { ok: 'Ativo', watch: 'A observar', risk: 'Em risco' };
 
 /* ---------------- class schedule ---------------- */
 const TEMPLATE: Record<number, [string, ClassType, string, string, number, number][]> = {};
@@ -225,13 +317,16 @@ export function seed(today = new Date()): AppState {
         ? { month: m, amount, paidAt: localIso(new Date(y, mm - 1, Math.max(1, dueDay - 2), 10)), method: METHODS[(i + k) % METHODS.length] }
         : { month: m, amount };
     });
-    const checkins = Array.from({ length: 6 + (i % 7) }, (_, k) => localIso(addDays(today, -(k * 3 + (i % 3)))));
+    // A few clients have gone quiet so the PT's "em risco" list has something real in the demo.
+    const gap = ({ 5: 12, 9: 8, 11: 15 } as Record<number, number>)[i] ?? 0;
+    const checkins = Array.from({ length: 6 + (i % 7) }, (_, k) => localIso(addDays(today, -(gap + k * 3 + (i % 3)))));
     return {
       id: `c${i + 1}`, name, phone: `+351 9${1 + (i % 6)}${i % 10} ${String(100 + i * 37).slice(-3)} ${String(200 + i * 53).slice(-3)}`,
       email: `${first}.exemplo@mail.pt`, planId, founder, dueDay,
       joined: `${months[0]}-0${1 + (i % 8)}`, goal: GOALS[i % GOALS.length], notes: '',
       workoutId: WORKOUTS[i % WORKOUTS.length].id, payments,
       metrics: [], prs: [], checkins, workoutLog: [], notifications: [],
+      weeklyGoal: 2 + (i % 3),
     };
   });
 
@@ -268,7 +363,7 @@ export function seed(today = new Date()): AppState {
   classes = classes.map(c => c);
 
   return {
-    version: 1, plans: PLANS, clients, classes, workouts: WORKOUTS, session: null,
+    version: 2, plans: PLANS, clients, classes, workouts: WORKOUTS, session: null,
     announcements: [
       { id: uid(), date: localIso(addDays(today, -2)), tag: 'Campanha', title: 'Black Friday no Pulse', body: 'Inscrições com 29% e 30% de desconto até domingo. Traz um amigo e treinem juntos.' },
       { id: uid(), date: localIso(addDays(today, -6)), tag: 'Horário', title: 'Novo horário de Sábado', body: 'A partir deste sábado temos Mobilidade & Core às 11:15.' },

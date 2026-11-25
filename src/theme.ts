@@ -1,32 +1,41 @@
-// Pulse Wellness Club — identity from @pulsewclub: black apparel and a warm gold logo.
-// Direction: a strength studio (chalk, black rubber, gold plates). Quiet graphite chrome,
-// gold used only for the one thing that matters on each screen. Signature: square set marks.
+// Pulse Wellness Club — "Giz" (chalk) direction.
+// Light chalk ground, black ink, gold used sparingly for the one thing that matters on a screen.
+// Dark "ink" cards hold the most important block on a screen (next class, revenue).
 export const C = {
-  bg: '#0B0B0C',
-  surface: '#151517',
-  surface2: '#1E1E21',
-  border: 'rgba(245,241,234,0.08)', // hairline: primary text at 8%
-  gold: '#C9A66B',
-  goldLight: '#E4CC97',
-  goldDark: '#8E7244',
-  sand: '#D8CBB2',
-  text: '#F5F1EA',
-  secondary: '#B9B3A9',
-  muted: '#9A958C',
-  faint: '#6E6962',
-  success: '#5BBF86',
-  warning: '#E3A946',
-  danger: '#E2604F',
-  onGold: '#141210',
+  bg: '#EEEBE5',        // chalk
+  surface: '#FFFFFF',   // cards
+  surface2: '#F6F4F0',  // inset rows, inputs
+  ink: '#151412',       // primary text and dark cards
+  inkSoft: '#24221E',   // chips on dark cards
+  onInk: '#F4F1EB',     // text on dark cards
+  onInkMuted: '#C9C3B8',
+  gold: '#E4C98E',      // accent on dark surfaces
+  goldDeep: '#B08A3E',  // accent on light surfaces (rings, bars)
+  goldText: '#7E5F22',  // gold text on light (4.5:1 on chalk)
+  goldTint: '#F7EEDB',  // payment / highlight cards
+  text: '#151412',
+  secondary: '#6B665E',
+  muted: '#77726A',
+  border: '#E4DFD6',
+  hairline: '#ECE8E1',
+  success: '#2F7D54',
+  successTint: '#E3F1E8',
+  warning: '#9A6A0E',
+  warningTint: '#F8EBCF',
+  danger: '#B3402E',
+  dangerTint: '#F8E1DC',
+  overlay: 'rgba(21,20,18,0.45)',
 };
 
-// control 10, card 16, sheet 20
-export const R = { sm: 6, md: 10, lg: 16, xl: 20 };
+// control 22 (pill), card 22, sheet 28
+export const R = { sm: 10, md: 16, lg: 22, xl: 28, pill: 999 };
 
-export const font = {
-  display: { fontWeight: '500' as const },
-  heading: { fontWeight: '500' as const },
-  label: { fontWeight: '400' as const, fontSize: 13 },
+export const F = {
+  display: 'Archivo_700Bold',
+  displayMedium: 'Archivo_500Medium',
+  body: 'Inter_400Regular',
+  medium: 'Inter_500Medium',
+  semibold: 'Inter_600SemiBold',
 };
 
 export const num = { fontVariant: ['tabular-nums' as const] };
